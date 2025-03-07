@@ -3165,5 +3165,4 @@ class CloudStackClient extends BaseCloudStackClient {
         return $this->request("logout", []);
     }
 
-
 }

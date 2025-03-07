@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use WHMCS\Database\Capsule;
+use WHMCS\Database\Capsule as DB;
 
 function cloudstack_ConfigOptions(): array
 {
@@ -25,14 +25,14 @@ function cloudstack_ConfigOptions(): array
     ];
 
     foreach ($customFields as $fieldName) {
-        $exists = Capsule::table("tblcustomfields")
+        $exists = DB::table("tblcustomfields")
             ->where('relid', $id)
             ->where('fieldname', 'LIKE', "%$fieldName%")
             ->where('type', 'product')
             ->exists();
 
         if (!$exists) {
-            Capsule::table("tblcustomfields")->insert([
+            DB::table("tblcustomfields")->insert([
                 "type" => "product",
                 "relid" => $id,
                 "fieldname" => $fieldName,
