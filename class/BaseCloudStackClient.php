@@ -1,94 +1,76 @@
 <?php
 
-/*
- * This file is part of the CloudStack PHP Client.
- *
- * (c) Quentin Pleplé <quentin.pleple@gmail.com>
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
+declare(strict_types=1);
 
 require_once dirname(__FILE__) . "/CloudStackClientException.php";
 
-class BaseCloudStackClient {
+class BaseCloudStackClient
+{
+    private string $apiKey;
+    private string $secretKey;
+    private string $endpoint; // Does not end with "/"
 
-    public $apiKey;
-    public $secretKey;
-    public $endpoint; // Does not ends with a "/"
-
-    public function __construct($endpoint, $apiKey, $secretKey) {
-        // API endpoint
+    public function __construct(string $endpoint, string $apiKey, string $secretKey)
+    {
+        // Validate API endpoint
         if (empty($endpoint)) {
-            throw new CloudStackClientException(ENDPOINT_EMPTY_MSG, ENDPOINT_EMPTY);
+            throw new CloudStackClientException(ENDPOINT_EMPTY_MSG ?? "Endpoint is empty", ENDPOINT_EMPTY ?? 1001);
         }
 
-        if (!preg_match("|^http://.*$|", $endpoint)) {
-            throw new CloudStackClientException(sprintf(ENDPOINT_NOT_URL_MSG, $endpoint), ENDPOINT_NOT_URL);
+        if (!str_starts_with($endpoint, "http://") && !str_starts_with($endpoint, "https://")) {
+            throw new CloudStackClientException(sprintf(ENDPOINT_NOT_URL_MSG ?? "Invalid endpoint URL: %s", $endpoint), ENDPOINT_NOT_URL ?? 1002);
         }
 
-        // $endpoint does not ends with a "/"
-        $this->endpoint = substr($endpoint, -1) == "/" ? substr($endpoint, 0, -1) : $endpoint;
-
-        // API key
-        if (empty($apiKey)) {
-            throw new CloudStackClientException(APIKEY_EMPTY_MSG, APIKEY_EMPTY);
-        }
-        $this->apiKey = $apiKey;
-
-        // API secret
-        if (empty($secretKey)) {
-            throw new CloudStackClientException(SECRETKEY_EMPTY_MSG, SECRETKEY_EMPTY);
-        }
-        $this->secretKey = $secretKey;
+        $this->endpoint = rtrim($endpoint, '/');
+        $this->apiKey = $apiKey ?: throw new CloudStackClientException(APIKEY_EMPTY_MSG ?? "API key is empty", APIKEY_EMPTY ?? 1003);
+        $this->secretKey = $secretKey ?: throw new CloudStackClientException(SECRETKEY_EMPTY_MSG ?? "Secret key is empty", SECRETKEY_EMPTY ?? 1004);
     }
 
-    public function getSignature($queryString) {
+    private function getSignature(string $queryString): string
+    {
         if (empty($queryString)) {
-            throw new CloudStackClientException(STRTOSIGN_EMPTY_MSG, STRTOSIGN_EMPTY);
+            throw new CloudStackClientException(STRTOSIGN_EMPTY_MSG ?? "String to sign is empty", STRTOSIGN_EMPTY ?? 1005);
         }
 
-        $hash = @hash_hmac("SHA1", $queryString, $this->secretKey, true);
-        $base64encoded = base64_encode($hash);
-        return urlencode($base64encoded);
+        $hash = hash_hmac("sha1", $queryString, $this->secretKey, true);
+        return urlencode(base64_encode($hash));
     }
 
-    public function request($command, $args = array()) {
+    public function request(string $command, array $args = []): mixed
+    {
         if (empty($command)) {
-            throw new CloudStackClientException(NO_COMMAND_MSG, NO_COMMAND);
+            throw new CloudStackClientException(NO_COMMAND_MSG ?? "No command provided", NO_COMMAND ?? 1006);
         }
 
-        if (!is_array($args)) {
-            throw new CloudStackClientException(sprintf(WRONG_REQUEST_ARGS_MSG, $args), WRONG_REQUEST_ARGS);
-        }
+        // Remove empty values
+        $args = array_filter($args, fn($value) => $value !== "");
 
-        foreach ($args as $key => $value) {
-            if ($value == "") {
-                unset($args[$key]);
-            }
-        }
-
-        // Building the query
         $args['apikey'] = $this->apiKey;
         $args['command'] = $command;
         $args['response'] = "json";
         ksort($args);
+
         $query = http_build_query($args);
         $query = str_replace("+", "%20", $query);
         $query .= "&signature=" . $this->getSignature(strtolower($query));
-        $url = $this->endpoint . "?" . $query;
-        //$json = file_get_contents($url);
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_TIMEOUT, '3');
-        $json = curl_exec($ch);
-        if (curl_errno($ch)) {
-            $json = json_encode(array('createdomainresponse' => array('errortext' => curl_error($ch))));
-        }
-        curl_close($ch);
-        $response = json_decode($json);
-        return $response;
-    }
 
+        $url = "{$this->endpoint}?{$query}";
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 3
+        ]);
+
+        $json = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+
+        if (curl_errno($ch) || $httpCode !== 200) {
+            $errorMsg = curl_error($ch) ?: "HTTP error code: $httpCode";
+            $json = json_encode(['errorresponse' => ['errortext' => $errorMsg]]);
+        }
+
+        curl_close($ch);
+        return json_decode($json, true);
+    }
 }
