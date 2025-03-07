@@ -136,10 +136,10 @@
                                 </table>  
                             {/if}
                         </div>
-
                     </div><!-- manage_tab_sec -->
                 </div><!-- col-12 end -->
             </div><!-- row end -->
-        </section></div><!-- wrapper-->
+        </section>
+    </div><!-- wrapper-->
 </div>
 

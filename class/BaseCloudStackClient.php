@@ -58,7 +58,7 @@ class BaseCloudStackClient
         $query = str_replace("+", "%20", $query); // Ensure proper encoding
         $query .= "&signature=" . $this->getSignature($query);
 
-        $url = "{$this->endpoint}?{$query}";
+        $url = "$this->endpoint?$query";
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
