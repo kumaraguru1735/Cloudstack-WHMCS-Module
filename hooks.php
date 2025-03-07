@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use WHMCS\Database\Capsule;
+use WHMCS\Database\Capsule as DB;
 
 add_hook('AdminAreaPage', 1, function (array $vars): void {
     if ($_POST['ajaxpage'] ?? '' === 'createconfig') {
@@ -14,7 +14,7 @@ add_hook('AdminAreaPage', 1, function (array $vars): void {
             exit();
         }
 
-        $data = Capsule::table('tblproducts')
+        $data = DB::table('tblproducts')
             ->where('id', '=', $productId)
             ->where('servertype', '=', 'cloudstack')
             ->first();
