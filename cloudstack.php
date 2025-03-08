@@ -40,7 +40,7 @@ function cloudstack_ConfigOptions(): array
                 "adminonly" => str_contains($fieldName, 'cloudstack') ? "on" : "off",
                 "required" => str_contains($fieldName, '|') ? "on" : "off",
                 "showorder" => str_contains($fieldName, '|') ? "on" : "off",
-                "fieldoptions" => str_contains($fieldName, 'networktype') ? "Shared,Guest,Isolated" : null
+                "fieldoptions" => str_contains($fieldName, 'networktype') ? "Shared,Guest,Isolated" : ""
             ]);
         }
     }
